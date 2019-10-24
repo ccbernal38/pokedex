@@ -11,6 +11,8 @@ public struct Utils{
 
     static let url = "https://pokeapi.co/api/v2"
     static let urlPokemonInit = "\(url)/pokemon"
+    static let urlMoves = "\(url)/move"
+    static let urlItems = "\(url)/item"
     static let urlPokemonSpecies = "\(url)/pokemon-species"
     
     static func colorGradient(type:String, bounds:CGRect) -> CAGradientLayer {
