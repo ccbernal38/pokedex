@@ -35,6 +35,7 @@ class PokemonSingleViewController: UIViewController, UITableViewDelegate, UITabl
     
     
     @IBOutlet weak var tableViewAbilities: UITableView!
+    @IBOutlet weak var tableViewEvolutions: UITableView!
     
     @IBOutlet weak var viewFondo: UIView!
     @IBOutlet weak var scrollView: UIScrollView!
@@ -78,6 +79,7 @@ class PokemonSingleViewController: UIViewController, UITableViewDelegate, UITabl
     
     var data:[String:Any] = [:]
     var poke_species:[String:Any] = [:]
+    var poke_evolutions:[String:Any] = [:]
     var imagen:UIImage? = nil
     var principal_type = ""
 
@@ -89,6 +91,7 @@ class PokemonSingleViewController: UIViewController, UITableViewDelegate, UITabl
             imagenPokemon.image = imagen
         }
         setData()
+        
     }
     
     func setData(){
@@ -128,7 +131,9 @@ class PokemonSingleViewController: UIViewController, UITableViewDelegate, UITabl
         habitatUILabel.textColor = Utils.getColorByType(type: principal_type)
         captureUILabel.textColor = Utils.getColorByType(type: principal_type)
         generationUILabel.textColor = Utils.getColorByType(type: principal_type)
-        
+        customButton(button: buttonStats, active: 1)
+        customButton(button: buttonEvolution, active: 0)
+        customButton(button: buttonMoves, active: 0)
         let color1:UIColor = UIColor(named: "color_\(principal_type)-1")!
         let color2:UIColor = UIColor(named: "color_\(principal_type)-2")!
         
@@ -306,35 +311,153 @@ class PokemonSingleViewController: UIViewController, UITableViewDelegate, UITabl
             let rate = String(format: "%.2f", (Float(capture_rate)/255.0)*100)
             
             ratioCatchLabel.text = "\(rate) %"
-
+            getEvolutions()
         }
     }
     @IBOutlet weak var heightTableViewConstrain: NSLayoutConstraint!
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        if data.count > 0 {
-            let count = (data["abilities"] as!  [[String:Any]]).count
-            return count
+        if tableView == tableViewAbilities {
+            if data.count > 0 {
+                let count = (data["abilities"] as!  [[String:Any]]).count
+                return count
+            }else{
+                return 0
+            }
+        }
+        else{
+            if evolution.count > 0{
+                return evolution.count - 1
+            }else{
+                return 0
+            }
+        }
+        
+    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        if tableView == tableViewAbilities {
+            let cell = tableView.dequeueReusableCell(withIdentifier: "PokemonSingleTableViewCell", for: indexPath) as! PokemonSingleTableViewCell
+            let abilities = data["abilities"] as!  [[String:Any]]
+            let row = abilities[indexPath.row]
+            let ability = row["ability"] as! [String:Any]
+            let hidden = row["is_hidden"] as! Int
+            if hidden == 1{
+                cell.imageHide.isHidden = false
+            }else{
+                cell.imageHide.isHidden = true
+            }
+            cell.titleLabel.text = (ability["name"] as? String ?? "").capitalized
+            cell.titleLabel.textColor = Utils.getColorByType(type: principal_type)
+            cell.url = ability["url"] as? String ?? ""
+            cell.cargarInfo()
+            return cell
         }else{
-            return 0
+            let cell = tableView.dequeueReusableCell(withIdentifier: "PokemonEvolutionViewCell", for: indexPath) as! PokemonEvolutionTableViewCell
+            
+            let pokeSource = evolution[indexPath.row] as! [String:Any]
+            
+            let pokeDest = evolution[indexPath.row + 1]
+            
+            let specieSource = pokeSource["species"] as! [String:Any]
+            cell.pokemonOrigenName.text = (specieSource["name"] as! String).capitalized
+            
+            let specieDest = pokeDest["species"] as! [String:Any]
+            cell.pokemonEvolucionName.text = (specieDest["name"] as! String).capitalized
+            
+            let evolution_details = pokeDest["evolution_details"] as! [[String:Any]]
+            
+            for detail in evolution_details {
+                cell.levelLabel.text = "Lv. \(detail["min_level"] as! Int)"
+                break
+            }
+            
+            
+            return cell
+        }
+        
+    }
+    
+    func getEvolutions(){
+        if let evolution_chain = poke_species["evolution_chain"] as? [String:Any] {
+            let url:String = evolution_chain["url"] as! String
+            AF.request("\(url)",headers: [
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            ]).validate(statusCode: 200..<600)
+                .responseJSON { response in
+                    switch response.result
+                    {
+                    case .success:
+                        if let json = response.value as? [String:Any] {
+                            self.poke_evolutions = json
+                            self.getVolutionFromArray(chain: self.poke_evolutions["chain"] as! [String : Any])
+                            self.tableViewEvolutions.reloadData()
+                        }
+                    case .failure(let error):
+                        print(error)
+                    }
+            }
         }
     }
-    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "PokemonSingleTableViewCell", for: indexPath) as! PokemonSingleTableViewCell
-        let abilities = data["abilities"] as!  [[String:Any]]
-        let row = abilities[indexPath.row]
-        let ability = row["ability"] as! [String:Any]
-        let hidden = row["is_hidden"] as! Int
-        if hidden == 1{
-            cell.imageHide.isHidden = false
+    var evolution:[[String:Any]] = []
+    
+    func getVolutionFromArray(chain:[String:Any]){
+        evolution.append(chain)
+        if (chain["evolves_to"] as! [[String:Any]]).count == 0{
+            return
         }else{
-            cell.imageHide.isHidden = true
+            for evol in chain["evolves_to"] as! [[String:Any]]{
+                getVolutionFromArray(chain: evol)
+            }
+            
         }
-        cell.titleLabel.text = (ability["name"] as? String ?? "").capitalized
-        cell.titleLabel.textColor = Utils.getColorByType(type: principal_type)
-        cell.url = ability["url"] as? String ?? ""
-        cell.cargarInfo()
-        return cell
+    }
+    @IBOutlet weak var viewStats: UIView!
+    @IBOutlet weak var viewEvolutions: UIView!
+    @IBOutlet weak var viewMoves: UIView!
+    
+    @IBOutlet weak var buttonStats: UIButton!
+    @IBOutlet weak var buttonEvolution: UIButton!
+    @IBOutlet weak var buttonMoves: UIButton!
+
+    @IBAction func buttonStats(_ sender: Any) {
+        viewStats.isHidden = false
+        viewEvolutions.isHidden = true
+        viewMoves.isHidden = true
+        customButton(button: buttonStats, active: 1)
+        customButton(button: buttonEvolution, active: 0)
+        customButton(button: buttonMoves, active: 0)
+
+    }
+    @IBAction func buttonEvolutions(_ sender: Any) {
+        viewStats.isHidden = true
+        viewEvolutions.isHidden = false
+        viewMoves.isHidden = true
+        customButton(button: buttonStats, active: 0)
+        customButton(button: buttonEvolution, active: 1)
+        customButton(button: buttonMoves, active: 0)
+    }
+    
+    @IBAction func buttonMoves(_ sender: Any) {
+        viewStats.isHidden = true
+        viewEvolutions.isHidden = true
+        viewMoves.isHidden = false
+        customButton(button: buttonStats, active: 0)
+        customButton(button: buttonEvolution, active: 0)
+        customButton(button: buttonMoves, active: 1)
+    }
+    
+    func customButton(button:UIButton, active:Int){
+        if active == 1 {
+            button.backgroundColor = Utils.getColorByType(type: principal_type)
+            button.layer.cornerRadius = 19.31
+            button.titleLabel?.textColor = UIColor.white
+        }else{
+            button.backgroundColor = .clear
+            button.layer.cornerRadius = 19.31
+            button.titleLabel?.textColor = Utils.getColorByType(type: principal_type)
+        }
     }
 }
 
