@@ -58,7 +58,24 @@ class PokemonViewController: UIViewController, UITableViewDelegate, UITableViewD
                 }
         }
     }
-
+    
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        let indexPath = tableView.indexPathForSelectedRow //optional, to get from any UIButton for example
+        
+        let currentCell = tableView.cellForRow(at: indexPath!) as! PokemonTableViewCell
+        
+            print(currentCell.nombre!.text)
+        if let vc = self.storyboard?.instantiateViewController(withIdentifier: "PokemonSingleStoryboard") as? PokemonSingleViewController {
+            vc.modalPresentationStyle = .fullScreen
+            vc.data = currentCell.data
+            if ((currentCell.imagen.image as? UIImage) != nil) {
+                vc.imagen = currentCell.imagen.image!
+            }
+            self.navigationController?.pushViewController(vc, animated: true)
+        }
+        
+        
+    }
     
 }
 
